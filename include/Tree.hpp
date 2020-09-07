@@ -7,7 +7,11 @@
  template <typename T>
 class Tree
 {
-    T                   m_value;
+public:
+    using value_type = T;
+
+private:
+    value_type          m_value;
     Tree*               m_parent;
     std::vector<Tree*>  m_children;
 
@@ -31,8 +35,13 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
  template <typename T>
-std::vector<Tree<T>*> flatten_breadth_first(Tree<T>&);
+auto flatten_breadth_first(Tree<T> const&) -> std::vector<Tree<T> const*>;
 
+ template <typename T>
+auto flatten_breadth_first(Tree<T>&) -> std::vector<Tree<T>*>;
+
+ template <typename T, typename Fn>
+void apply_breadth_first(Tree<T> const&, Fn&& callable);
 
  template <typename T, typename Fn>
 void apply_breadth_first(Tree<T>&, Fn&& callable);

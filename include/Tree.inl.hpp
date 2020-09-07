@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <functional>
 #include <queue>
+#include <type_traits>
 
 
 
@@ -101,26 +102,71 @@ auto Tree<T>::children() const -> std::vector<Tree*> const&
 
 
 ////////////////////////////////////////////////////////////////////////////////
- template <typename T>
-std::vector<Tree<T>*> flatten_breadth_first(Tree<T>& root)
+namespace // const-generic functions
 {
-    std::vector<Tree<T>*> flattened;
-
-    std::queue<Tree<T>*> queue;
-    queue.push(&root);
-
-    while (!queue.empty())
+     template <class TreeRefType>
+    auto impl_flatten_breadth_first(TreeRefType &&root)
     {
-        auto* node = queue.front();
-        flattened.push_back(node);
-        queue.pop();
+        using TreeType = std::remove_reference_t<TreeRefType>;
 
-        for (auto *child : node->children()) {
-            queue.push(child);
+        std::vector<TreeType*> flattened;
+        std::queue<TreeType*> queue;
+        queue.push(&root);
+
+        while (!queue.empty())
+        {
+            auto* node = queue.front();
+            flattened.push_back(node);
+            queue.pop();
+
+            for (auto *child : node->children()) {
+                queue.push(child);
+            }
+        }
+
+        return flattened;
+    }
+
+
+
+     template <typename TreeRefType, typename Fn>
+    void impl_apply_breadth_first(TreeRefType &&root, Fn &&callable)
+    {
+        using TreeType = std::remove_reference_t<TreeRefType>;
+
+        std::queue<TreeType*> queue;
+        queue.push(&root);
+
+        while (!queue.empty())
+        {
+            auto* node = queue.front();
+            queue.pop();
+
+            for (auto *child : node->children()) {
+                queue.push(child);
+            }
+
+            std::invoke(callable, *node);
         }
     }
 
-    return flattened;
+
+} // ::
+
+
+
+ template <typename T>
+std::vector<Tree<T> const*> flatten_breadth_first(Tree<T> const& root)
+{
+    return impl_flatten_breadth_first(root);
+}
+
+
+
+ template <typename T>
+auto flatten_breadth_first(Tree<T>& root) -> std::vector<Tree<T>*>
+{
+    return impl_flatten_breadth_first(root);
 }
 
 
@@ -128,18 +174,13 @@ std::vector<Tree<T>*> flatten_breadth_first(Tree<T>& root)
  template <typename T, typename Fn>
 void apply_breadth_first(Tree<T>& root, Fn&& callable)
 {
-    std::queue<Tree<T>*> queue;
-    queue.push(&root);
+    impl_apply_breadth_first(root, std::forward<Fn>(callable));
+}
 
-    while (!queue.empty())
-    {
-        auto* node = queue.front();
-        queue.pop();
 
-        for (auto *child : node->children()) {
-            queue.push(child);
-        }
 
-        std::invoke(callable, *node);
-    }
+ template <typename T, typename Fn>
+void apply_breadth_first(Tree<T> const& root, Fn&& callable)
+{
+    impl_apply_breadth_first(root, std::forward<Fn>(callable));
 }
